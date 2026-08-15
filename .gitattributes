@@ -1,0 +1,21 @@
+# Normalise line endings so the repo is identical on macOS, Linux and Windows.
+* text=auto eol=lf
+
+# Binary — never diff or normalise these.
+*.pbix       binary
+*.parquet    binary
+*.png        binary
+*.jpg        binary
+*.gz         binary
+*.db         binary
+
+# Daily snapshots are gzipped data, not source. Excluding them from language
+# stats keeps GitHub reporting the repo as Python rather than "unknown".
+data/daily/*.csv.gz  binary linguist-generated=true
+
+# Notebooks are documentation here, not the implementation. Without this,
+# GitHub reports the repo as majority-Jupyter because of cell metadata.
+*.ipynb      linguist-documentation
+
+# SQL is a first-class part of this project — make sure it is counted.
+*.sql        linguist-detectable=true

@@ -1,0 +1,39 @@
+# Raw HTML payloads: large, and the retailers' page content. Kept locally so
+# parsing bugs can be fixed retroactively, never redistributed.
+data/raw/
+
+# The database is a DERIVED artefact — rebuild it with `pd rebuild`.
+# Committing a binary that changes every day would make the history unreadable.
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Generated exports
+data/exports/
+*.parquet
+
+# data/daily/ is deliberately NOT ignored. Those gzipped CSVs are the durable
+# record of the study — the database is rebuilt from them, and the commit
+# history of that folder is the collection log.
+!data/daily/
+!data/daily/*.csv.gz
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# notebooks
+.ipynb_checkpoints/
+
+# power bi
+*.pbix.bak
+
+# os
+.DS_Store

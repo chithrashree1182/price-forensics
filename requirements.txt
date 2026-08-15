@@ -1,0 +1,25 @@
+# --- core ---
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.3.0
+PyYAML==6.0.2
+pandas==2.2.3
+numpy==2.1.3
+
+# --- browser scraping (JS-rendered sites) ---
+playwright==1.49.0
+
+# --- analysis ---
+scipy==1.14.1
+
+# --- machine learning ---
+scikit-learn==1.6.0      # Isolation Forest (unsupervised anomaly detection)
+ruptures==1.1.9          # PELT change-point segmentation
+
+# --- export / reporting ---
+pyarrow==18.1.0          # parquet export for Power BI
+tabulate==0.9.0
+
+# --- dev ---
+pytest==8.3.4
+pytest-cov==6.0.0

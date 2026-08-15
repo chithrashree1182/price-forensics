@@ -1,0 +1,37 @@
+name: CI
+
+# Tests and the synthetic end-to-end demo.
+#
+# Collection does NOT run here. Run #1 of the original daily-scrape workflow
+# demonstrated why: the retailers' CDN returns HTTP 403 to GitHub's datacenter
+# IPs, including for robots.txt itself, and Python's robotparser fails closed
+# on a 403 (disallow everything). A hosted runner therefore makes zero
+# requests by design. Collection runs from a residential connection via
+# launchd — see scripts/daily_collect.sh.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[ml,export,dev]"
+      - name: Tests
+        run: pytest -q
+      - name: Synthetic end-to-end
+        run: |
+          pf init
+          pf synth generate --days 90
+          pf synth evaluate
+          pf ml benchmark

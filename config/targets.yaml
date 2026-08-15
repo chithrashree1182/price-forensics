@@ -1,0 +1,119 @@
+# ---------------------------------------------------------------------------
+# What to track.
+#
+# Two collection modes run side by side:
+#
+#   panel   — a fixed set of products followed every single day. This is the
+#             longitudinal backbone; changing it mid-study breaks comparability,
+#             so additions are append-only and dated.
+#
+#   sweep   — broad category listing pages, scraped daily. Cheap (one request
+#             returns ~40 products) and gives the cross-sectional sample used
+#             for the MRP-contradiction analysis.
+# ---------------------------------------------------------------------------
+
+study:
+  name: "Indian e-commerce discount integrity study"
+  # The pre-sale inflation window we are primarily testing. Festival sales
+  # (Big Billion Days / Great Indian Festival) typically run late Sep–Oct.
+  observation_start: "2026-08-16"
+  festival_windows:
+    - name: "Independence Day sale"
+      start: "2026-08-09"
+      end: "2026-08-18"
+    - name: "Festival season (expected)"
+      start: "2026-09-20"
+      end: "2026-10-25"
+
+# ---------------------------------------------------------------------------
+sweep:
+  # Categories scraped daily from listing pages. Electronics and fashion show
+  # the most aggressive discount messaging; groceries act as a control group
+  # where we expect *less* manipulation (a useful negative control).
+  enabled: true
+  pages_per_category: 3          # ~120 products per category per site per day
+  categories:
+    - id: mobiles
+      label: Mobile phones
+      sites: [reliancedigital]
+      control_group: false
+    - id: laptops
+      label: Laptops
+      sites: [reliancedigital]
+      control_group: false
+    - id: headphones
+      label: Headphones
+      sites: [reliancedigital, snapdeal]
+      control_group: false
+    - id: tablets
+      label: Tablets
+      sites: [reliancedigital]
+      control_group: false
+    - id: smart_watches
+      label: Smart watches
+      sites: [reliancedigital]
+      control_group: false
+    - id: televisions
+      label: Televisions
+      sites: [reliancedigital]
+      control_group: false
+
+    # Snapdeal-only categories. Its catalogue is unbranded marketplace stock,
+    # so these do not overlap with the Reliance categories above by SKU. They
+    # are collected for the discount-credibility comparison, which contrasts
+    # the two retailer types rather than matching individual products.
+    - id: mobile_accessories
+      label: Mobile accessories (marketplace)
+      sites: [snapdeal]
+      control_group: false
+    - id: electronics
+      label: Electronics (marketplace)
+      sites: [snapdeal]
+      control_group: false
+
+# ---------------------------------------------------------------------------
+panel:
+  # Products followed individually, every day, for the whole study.
+  # Keep this list small and stable — 200-400 items is plenty and keeps the
+  # daily crawl under ~30 minutes at polite rate limits.
+  enabled: true
+  # Seeded from the sweep: the N most-listed products across sites, so that
+  # cross-seller MRP comparison has enough overlap to be meaningful.
+  auto_seed:
+    enabled: true
+    min_sites_listing_product: 1   # raised to 2+ when a second site is added
+    max_products: 300
+  # Manually pinned items (always tracked regardless of auto-seed).
+  pinned: []
+    # - brand: Samsung
+    #   model: "Galaxy S24"
+    #   variant: "128GB"
+
+# ---------------------------------------------------------------------------
+detection:
+  # Thresholds for flagging a suspected pre-sale price inflation. These are
+  # deliberately declared up front, before looking at results, so the analysis
+  # is not tuned until it produces a headline. See docs/methodology.md.
+  inflation:
+    lookback_days: 21            # window searched before a discount claim
+    min_rise_pct: 10.0           # price must rise at least this much
+    min_hold_days: 3             # ...and hold, to exclude one-day glitches
+    max_days_before_sale: 21     # rise must occur within this window of the sale
+    min_observations: 10         # minimum price points before we judge a product
+
+  mrp_dispersion:
+    # A product's claimed MRP should be identical across sellers. Allow a small
+    # tolerance for genuine regional/packaging variation before flagging.
+    tolerance_pct: 2.0
+    min_sellers: 3               # need at least 3 quotes to call one an outlier
+
+  dark_patterns:
+    stock_claim_patterns:
+      - "only (\\d+) left"
+      - "(\\d+) left in stock"
+      - "hurry"
+      - "limited stock"
+      - "selling fast"
+    viewer_claim_patterns:
+      - "(\\d+) people (are )?viewing"
+      - "(\\d+) others? (are )?looking"

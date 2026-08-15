@@ -1,0 +1,123 @@
+# ---------------------------------------------------------------------------
+# Site scraping configuration.
+#
+# Selectors live here, NOT in code. E-commerce sites change their markup every
+# few weeks; when a scraper breaks the fix should be a one-line YAML edit, not
+# a code change. `pf doctor` reports which selectors are currently failing.
+#
+# `strategy` picks the fetcher:
+#   static  -> requests + BeautifulSoup (fast, cheap, no browser)
+#   browser -> Playwright (for prices rendered client-side by JS)
+# ---------------------------------------------------------------------------
+
+defaults:
+  # Politeness. These are deliberately conservative — the project is a study of
+  # retailer behaviour, not a load test. See docs/ethics.md.
+  request_delay_seconds: 4.0
+  jitter_seconds: 2.0
+  timeout_seconds: 30
+  max_retries: 3
+  respect_robots_txt: true
+  user_agent: >-
+    Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
+    (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+
+sites:
+
+  # -------------------------------------------------------------------------
+  # Reliance Digital serves its catalogue as a JSON blob that the front end
+  # hydrates from, so prices are not in the rendered HTML at all. Reading the
+  # blob is both more reliable and lighter than DOM scraping: field names are
+  # the retailer's own API contract and change far more slowly than CSS classes.
+  reliancedigital:
+    display_name: Reliance Digital
+    strategy: json_ld
+    base_url: https://www.reliancedigital.in
+    # Category pages carry a schema.org ItemList (names + URLs, no prices);
+    # product pages carry a Product with offers.price. Two hops, but both are
+    # published contracts that Google depends on, so they are far more stable
+    # than CSS classes or internal state paths.
+    json_ld:
+      listing_type: ItemList
+      detail_type: Product
+      mrp_paths:
+        - offers.highPrice
+        - offers.listPrice
+    # Slugs verified with `pf doctor` on 2026-08-15. Note that
+    # /collection/mobile-phones returns an EMPTY ItemList while
+    # /collection/mobiles works - the wrong one still returns HTTP 200, which
+    # is why the health check asserts product counts rather than status codes.
+    categories:
+      mobiles:       /collection/mobiles
+      laptops:       /collection/laptops
+      headphones:    /collection/headphones
+      tablets:       /collection/tablets
+      smart_watches: /collection/smart-watches
+      televisions:   /collection/televisions
+
+  # -------------------------------------------------------------------------
+  # Snapdeal is a marketplace, and it serves plain server-rendered HTML, so the
+  # original CSS-selector strategy works here where it failed on Reliance.
+  #
+  # Its catalogue does NOT overlap with Reliance Digital - the "mobile phones"
+  # category returns phone cases and cables from unbranded sellers, not phones.
+  # It therefore does not unblock the cross-seller MRP audit. It is included
+  # because the *contrast* is the point: a marketplace advertising ~80% off
+  # against round-number MRPs, next to a first-party retailer advertising
+  # 0-50% off against manufacturer prices, is a measurable difference in
+  # discount credibility that needs no shared SKUs.
+  snapdeal:
+    display_name: Snapdeal
+    strategy: static
+    base_url: https://www.snapdeal.com
+    listing:
+      item: "div.product-tuple-listing"
+      title: "p.product-title"
+      url: "a.dp-widget-link@href, a[href]@href"
+      selling_price: "span.lfloat.product-price, span.product-price"
+      mrp: "span.product-desc-price.strike"
+      discount_label: "div.product-discount span"
+    detail:
+      title: "h1.pdp-e-i-head"
+      selling_price: "span.payBlkBig, span.pdp-final-price span"
+      mrp: "span.pdpCutPrice"
+      stock_claim: "div.sold-out-err, span.limited-stock"
+    categories:
+      mobile_accessories: /products/mobiles-mobile-phones
+      electronics:        /products/electronics-mobiles
+      headphones:         /products/electronics-headphones
+
+  # -------------------------------------------------------------------------
+  # NOTE ON SITES NOT INCLUDED
+  #
+  # Flipkart and Croma were in the original target list and have been removed
+  # after `pf doctor` was run against them:
+  #
+  #   flipkart - serves a reCAPTCHA challenge page in place of content, and in
+  #              place of robots.txt itself. Enterprise bot protection.
+  #   croma    - Akamai returns HTTP 403 to any non-browser client, including
+  #              for robots.txt.
+  #   nykaa    - HTTP 403, same Akamai posture.
+  #   ajio     - HTTP 403, same Akamai posture.
+  #
+  # Two further candidates were tested with a headless browser and rejected on
+  # technical grounds rather than policy:
+  #   vijaysales - product grid never renders; AEM site loading its catalogue
+  #                through a gated API. Brand names appear in navigation only.
+  #   tatacliq   - SPA shell returns ~108KB and never hydrates.
+  #
+  # Getting past these would require CAPTCHA solving or browser-fingerprint
+  # evasion. docs/ethics.md rules both out: a block is a legitimate answer and
+  # the site is dropped, not worked around. Their historical prices remain
+  # reachable through the Internet Archive, which is what the wayback scraper
+  # is for.
+
+  # Wayback is not a retailer — it is a historical backfill source. It reuses
+  # whichever site's selectors the archived snapshot belongs to.
+  wayback:
+    display_name: Internet Archive
+    strategy: wayback
+    base_url: https://web.archive.org
+    cdx_endpoint: https://web.archive.org/cdx/search/cdx
+    # Archive.org asks crawlers to stay gentle; they are doing us a favour.
+    request_delay_seconds: 6.0
